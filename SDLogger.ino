@@ -8,6 +8,8 @@
  ** MISO - pin 12
  ** CLK - pin 13
  ** CS - pin 4
+ ** S1 - GND
+ ** S2 - GND
  
  created   Nov 2010
  by David A. Mellis
@@ -43,7 +45,7 @@ long zAbs =0;
 String curDate;
 String curTime;
 
-bool isWrite = false;
+bool isWriteFile = false;
 
 void accelCalibrate()
 {
@@ -83,7 +85,6 @@ void setup()
   // or the SD library functions will not work. 
 
   pinMode(10, OUTPUT);
-
   pinMode(13, OUTPUT);
 
   if (!SD.begin(4))
@@ -97,10 +98,21 @@ void setup()
   DateTime now = RTC.now();
   //  sprintf(filename, "%d-%02d-%02d-%02d-%02d-%02d.csv", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
 
-  sprintf(filename, "%d%02d%02d.csv", now.year(), now.month(), now.day());   
+  sprintf(filename, "%02d%02d%02d.csv", now.year(), now.month(), now.day()), now.hour();   
   Serial.print("Filename: ");
-  Serial.println(filename);  
+  Serial.println(filename);
+  initFile();
 }
+
+void initFile()
+{
+  myFile = SD.open(filename, FILE_WRITE);
+  if (myFile)
+  {
+    myFile.println("==============");
+  }
+}
+
 void writeFile()
 {
   // open the file. note that only one file can be open at a time,
@@ -205,6 +217,7 @@ void loop()
   delay(1*1000);
   // nothing happens after setup
 }
+
 
 
 
