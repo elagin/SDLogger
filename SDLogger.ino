@@ -29,29 +29,29 @@ RTC_DS1307 RTC;
 char buf[40];
 char filename[40];
 
-long xpin=0;
-long ypin=1;
-long zpin=2;
-long x, y, z;
+int xpin=0;
+int ypin=1;
+int zpin=2;
+int x, y, z;
 
-long x_cal=0;
-long y_cal=0; //калибровка датчика
-long z_cal=0;
+int x_cal=0;
+int y_cal=0; //калибровка датчика
+int z_cal=0;
 
-long xAbs = 0;
-long yAbs = 0;
-long zAbs =0;
+int xAbs = 0;
+int yAbs = 0;
+int zAbs =0;
 
 String curDate;
 String curTime;
 
-bool isWriteFile = false;
+bool isWriteFile = true;
 
 void accelCalibrate()
 {
-
+  Serial.println("Start calibrate");
   digitalWrite(13, HIGH);
-  for(int i=0; i < 1000; i++)
+  for(int i=0; i < 10; i++)
   { 
     getData();
   }
@@ -59,6 +59,13 @@ void accelCalibrate()
   y_cal = yAbs;
   z_cal = zAbs;  
   digitalWrite(13, LOW);
+  Serial.println("End calibrate");  
+  myFile = SD.open(filename, FILE_WRITE);
+  if (myFile)
+  {
+ sprintf(buf, ";;;%d;%d;%d", x_cal, y_cal, z_cal);
+ myFile.println(buf);    
+  }
 }
 
 void setup()
@@ -71,11 +78,11 @@ void setup()
 
   Wire.begin();
   RTC.begin();
-  if (! RTC.isrunning()) {
+//  if (! RTC.isrunning()) {
     Serial.println("RTC is NOT running!");
     // following line sets the RTC to the date & time this sketch was compiled
-    RTC.adjust(DateTime(__DATE__, __TIME__));
-  }
+//    RTC.adjust(DateTime(__DATE__, __TIME__));
+//  }
 
   //  RTC.begin(DateTime(__DATE__, __TIME__));
   Serial.print("Initializing SD card...");
@@ -98,10 +105,11 @@ void setup()
   DateTime now = RTC.now();
   //  sprintf(filename, "%d-%02d-%02d-%02d-%02d-%02d.csv", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
 
-  sprintf(filename, "%02d%02d%02d.csv", now.year(), now.month(), now.day()), now.hour();   
+  sprintf(filename, "%02d%02d%02d%02d.csv", now.month(), now.day(), now.hour(), now.minute());   
   Serial.print("Filename: ");
   Serial.println(filename);
   initFile();
+  accelCalibrate();
 }
 
 void initFile()
@@ -165,27 +173,51 @@ void writeFile()
 
 void getData()
 {
-  long iter = 20;
-  for(long i = 0; i < iter; i++)
+int x = 0;
+int y = 0;
+int z = 0;
+xAbs = 0;
+yAbs = 0;
+zAbs = 0;
+
+  long iter = 3;
+  for(int i = 0; i < iter; i++)
   {
-    xAbs += analogRead(xpin) - x_cal;
-    yAbs += analogRead(ypin) - y_cal;
-    zAbs += analogRead(zpin) - z_cal;
+    x = analogRead(xpin);
+    y = analogRead(ypin);
+    z = analogRead(zpin);
+    xAbs += (x - x_cal);
+    yAbs += (y - y_cal);
+    zAbs += (x - z_cal);
     delay(1);
+// sprintf(buf, "x=%d(x_cal=%d)[xAbs=%d]", x, x_cal, xAbs);
+// Serial.println(buf);    
   }
+ 
   xAbs = xAbs / iter;
   yAbs = yAbs / iter;
   zAbs = zAbs / iter;
+/*
+ sprintf(buf, "x=%d(x_cal=%d)[xAbs=%d]", x, x_cal, xAbs);
+ Serial.println(buf);
 
-  Serial.print("xGr=");
-  Serial.print(xAbs);
+ sprintf(buf, "y=%d(y_cal=%d)[yAbs=%d]", y, y_cal, yAbs);
+ Serial.println(buf);
 
-  Serial.print("\tyGr=");
-  Serial.print(yAbs);
+ sprintf(buf, "z=%d(z_cal=%d)[zAbs=%d]", z, z_cal, zAbs);
+ Serial.println(buf);
+ 
+Serial.println("==============");
+*/
+//  Serial.print("xGr=");
+//  Serial.print(xAbs);
+
+//  Serial.print("\tyGr=");
+//  Serial.println(yAbs);
   //   Serial.print(yAbs/1.88);   
 
 
-  Serial.print("\t\txGr=");
+//  Serial.print("\t\txGr=");
   //   gzAbs += zAbs;
   //   gIter++;
   //   Serial.print((gzAbs/gIter));
@@ -208,12 +240,14 @@ void getTime()
 
 void loop()
 {
+  digitalWrite(13, HIGH);
   getTime();
   getData();
   if(isWriteFile)
   {
     writeFile();
   }
+  digitalWrite(13, LOW);
   delay(1*1000);
   // nothing happens after setup
 }
