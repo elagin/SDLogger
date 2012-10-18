@@ -6,57 +6,90 @@
 
 //SD
 #include <SD.h>
-const int chipSelect = 53;
-char filename[40];
+const int chipSelect = 53; // For ArduinoMega
+
 RTC_DS1307 RTC;
 
-String curDate;
-String curTime;
 char buf[40];
 
-void writeFile()
-{
-    // open the file. note that only one file can be open at a time,
-    // so you have to close this one before opening another.
-    File myFile;
-    Serial.print("Filename: ");
-    Serial.println(filename);  
-    myFile = SD.open(filename, FILE_WRITE);
-    
-    // if the file opened okay, write to it:
-    if (myFile)
-    {
-        Serial.print("Writing to ");
-        Serial.println(filename);
-        //    myFile.println("testing 1, 2, 3.");
-        //   sprintf(buf, ";%d;%d;%d", xAbs, yAbs, zAbs);
-        
-        myFile.println(curTime);
-        //    myFile.println(buf);
-        
-        //    Serial.print(curTime);        
-        //    Serial.println(buf);
-        // close the file:
-        myFile.close();
-        Serial.println("done.");
-    }
-    else
-    {
-        // if the file didn't open, print an error:
-        Serial.println("error opening test.txt");
-    }
-}
-
-void getTime()
+struct CRtc
 {
     String res;
-    DateTime now = RTC.now();
     
-    sprintf(buf, "%d-%02d-%02d", now.year(), now.month(), now.day());
-    curDate = buf;
-    sprintf(buf, "%02d:%02d:%02d", now.hour(), now.minute(), now.second()); 
-    curTime = buf;
-}
+    String getDate()
+    {
+        DateTime now = RTC.now();
+        sprintf(buf, "%d%02d%02d", now.year(), now.month(), now.day());
+        //        sprintf(buf, "%02d-%02d", now.year(), now.month(), now.day());        
+        res = buf;
+        return res;
+    }
+    
+    String getTime()
+    {
+        DateTime now = RTC.now();
+        sprintf(buf, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+        res = buf;
+        return res;
+    }
+};
+
+CRtc Rtc;
+
+struct CLoger
+{
+    bool writeFile(String data)
+    {
+        // open the file. note that only one file can be open at a time,
+        // so you have to close this one before opening another.
+        if(data.length() > 0)
+        {
+            File myFile;
+            String s_filename = Rtc.getDate();
+            s_filename += ".csv";
+            char filename[40];
+            s_filename.toCharArray(filename, 40);
+            
+            Serial.print("Filename: ");
+            Serial.println(filename);
+            myFile = SD.open(filename, FILE_WRITE);            
+            
+            if (myFile)
+            {
+                int cnt = 0;
+                Serial.print("Writing to ");
+                Serial.println(filename);
+                
+                String out = Rtc.getTime() + ";" + data;;
+                cnt = myFile.println(out);
+                Serial.println(out);
+                
+                if(0 == cnt)
+                {
+                    Serial.print("ERROR Loger: writing to ");
+                    Serial.println(filename);
+                }
+                
+                myFile.close();
+                Serial.println("done.");
+                return true;
+            }
+            else
+            {
+                Serial.print("ERROR Loger: opening ");
+                Serial.println(filename);
+                return false;
+            }
+        }
+        else
+        {
+            Serial.println("WARINING Loger: No data to write");
+            return true;
+        }
+    }
+};
+
+CLoger Loger;
 
 void setup ()
 {
@@ -72,28 +105,20 @@ void setup ()
     
     Serial.print("Initializing SD card...");
     pinMode(chipSelect, OUTPUT);
-    if(!SD.begin(chipSelect))
+    if(SD.begin(chipSelect))
     {
-        Serial.println("Card failed, or not present");
-        // don't do anything more:
-        //        return;
+        Serial.println("card initialized.");
     }
-    Serial.println("card initialized.");  
-    
-    DateTime now = RTC.now();
-    //  sprintf(filename, "%d-%02d-%02d-%02d-%02d-%02d.csv", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-    
-    //  sprintf(filename, "%d%02d%02d.csv", now.year(), now.month(), now.day());   
-    sprintf(filename, "%02d%02d.csv", now.year(), now.month(), now.day());     
-    Serial.print("Filename: ");
-    Serial.println(filename);  
-    
+    else
+    {
+        Serial.println("ERROR Loger: Card failed, or not present");
+    }
 }
 
 void loop ()
 {
-    getTime();
-    writeFile();
+    String data(123);
+    Loger.writeFile(data);
     Serial.println();
     delay(1000);
 }
